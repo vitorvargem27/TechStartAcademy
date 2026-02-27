@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8f9fa"/>
+      <stop offset="100%" style="stop-color:#e0e4e8"/>
+    </linearGradient>
+    <linearGradient id="headGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#eef1f5"/>
+    </linearGradient>
+    <linearGradient id="eyeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4facde"/>
+      <stop offset="100%" style="stop-color:#3a8fd4"/>
+    </linearGradient>
+    <linearGradient id="bgCircle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8f4fd"/>
+      <stop offset="100%" style="stop-color:#d0eafb"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.6"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+    <filter id="softShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#a0b4c8" flood-opacity="0.3"/>
+    </filter>
+    <filter id="innerShadow">
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#8aa4be" flood-opacity="0.15"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="58" fill="url(#bgCircle)" filter="url(#softShadow)"/>
+
+  <!-- Antenna stem -->
+  <rect x="57.5" y="6" width="5" height="14" rx="2.5" fill="url(#bodyGrad)" filter="url(#innerShadow)"/>
+  <!-- Antenna tip -->
+  <circle cx="60" cy="5" r="5" fill="#4facde" opacity="0.9" filter="url(#glow)">
+    <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="59" cy="3.5" r="1.5" fill="white" opacity="0.6"/>
+
+  <!-- Head -->
+  <rect x="26" y="18" width="68" height="56" rx="22" fill="url(#headGrad)" filter="url(#softShadow)" stroke="#d0d8e0" stroke-width="0.5"/>
+  <ellipse cx="48" cy="28" rx="18" ry="8" fill="url(#shine)"/>
+
+  <!-- Visor area -->
+  <rect x="34" y="32" width="52" height="26" rx="13" fill="#f0f3f7" stroke="#d8dfe6" stroke-width="0.8"/>
+
+  <!-- Left eye -->
+  <ellipse cx="47" cy="45" rx="8" ry="8" fill="url(#eyeGrad)" filter="url(#glow)">
+    <animate attributeName="ry" values="8;1.5;8" dur="4.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="44.5" cy="42.5" r="2.5" fill="white" opacity="0.85"/>
+  <circle cx="49" cy="47" r="1.2" fill="white" opacity="0.4"/>
+
+  <!-- Right eye -->
+  <ellipse cx="73" cy="45" rx="8" ry="8" fill="url(#eyeGrad)" filter="url(#glow)">
+    <animate attributeName="ry" values="8;1.5;8" dur="4.5s" begin="0s" repeatCount="indefinite"/>
+  </ellipse>
+  <circle cx="70.5" cy="42.5" r="2.5" fill="white" opacity="0.85"/>
+  <circle cx="75" cy="47" r="1.2" fill="white" opacity="0.4"/>
+
+  <!-- Smile -->
+  <path d="M 46 62 Q 60 72 74 62" fill="none" stroke="#4facde" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="40" cy="58" r="4" fill="#ffc9c9" opacity="0.25"/>
+  <circle cx="80" cy="58" r="4" fill="#ffc9c9" opacity="0.25"/>
+
+  <!-- Ears -->
+  <rect x="17" y="38" width="10" height="16" rx="5" fill="url(#headGrad)" stroke="#d0d8e0" stroke-width="0.5" filter="url(#innerShadow)"/>
+  <circle cx="22" cy="46" r="2.5" fill="#4facde" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="93" y="38" width="10" height="16" rx="5" fill="url(#headGrad)" stroke="#d0d8e0" stroke-width="0.5" filter="url(#innerShadow)"/>
+  <circle cx="98" cy="46" r="2.5" fill="#7ee8a2" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="3s" begin="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Neck -->
+  <rect x="48" y="74" width="24" height="8" rx="4" fill="url(#bodyGrad)" stroke="#d0d8e0" stroke-width="0.5"/>
+
+  <!-- Body -->
+  <rect x="32" y="82" width="56" height="30" rx="14" fill="url(#headGrad)" filter="url(#softShadow)" stroke="#d0d8e0" stroke-width="0.5"/>
+  <ellipse cx="52" cy="88" rx="14" ry="5" fill="url(#shine)"/>
+
+  <!-- Heart light -->
+  <circle cx="60" cy="95" r="5" fill="#4facde" opacity="0.15"/>
+  <circle cx="60" cy="95" r="3.5" fill="#4facde" opacity="0.35">
+    <animate attributeName="r" values="3.5;4.2;3.5" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.35;0.6;0.35" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="59" cy="93.5" r="1" fill="white" opacity="0.5"/>
+
+  <!-- Chest lines -->
+  <line x1="48" y1="100" x2="52" y2="100" stroke="#c8d4e0" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+  <line x1="56" y1="100" x2="64" y2="100" stroke="#c8d4e0" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+  <line x1="68" y1="100" x2="72" y2="100" stroke="#c8d4e0" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Shoulders -->
+  <ellipse cx="30" cy="90" rx="5" ry="7" fill="url(#bodyGrad)" stroke="#d0d8e0" stroke-width="0.5"/>
+  <ellipse cx="90" cy="90" rx="5" ry="7" fill="url(#bodyGrad)" stroke="#d0d8e0" stroke-width="0.5"/>
+</svg>

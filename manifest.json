@@ -1,0 +1,13 @@
+{
+  "name": "Tech Start Academy",
+  "short_name": "TechStart",
+  "description": "Plataforma inclusiva de ensino de programação",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#4facde",
+  "icons": [
+    { "src": "Logo_Tech_Start_Academy.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "Logo_Tech_Start_Academy.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

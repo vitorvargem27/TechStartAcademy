@@ -1,8 +1,0 @@
-# Tech Start Academy — Backend Dependencies
-# Instale com: pip install -r requirements.txt
-
-flask==3.1.0
-flask-cors==5.0.0
-google-genai==1.10.0     # nova biblioteca (substitui google-generativeai)
-python-dotenv==1.0.1     # variáveis de ambiente via .env
-gunicorn==23.0.0         # servidor de produção

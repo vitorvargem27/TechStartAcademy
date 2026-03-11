@@ -6,29 +6,9 @@
       "password": "Vvjb1234#",
       "role": "admin",
       "name": "Administrador",
-      "email": "admin@techstart.com",
-      "avatar": "",
-      "createdAt": "2026-02-24T21:47:17.913527+00:00"
-    },
-    {
-      "id": "u-001",
-      "username": "Matheus",
-      "password": "senha123",
-      "role": "user",
-      "name": "Matheus Santos",
-      "email": "matheus@email.com",
-      "avatar": "",
-      "createdAt": "2026-02-24T21:47:17.913527+00:00"
-    },
-    {
-      "id": "u-1773271794432",
-      "name": "Vitor",
       "email": "vitorvargem27@gmail.com",
-      "username": "vitorvargem",
-      "password": "123456",
-      "role": "user",
       "avatar": "",
-      "createdAt": "2026-03-11T23:29:54.432Z"
+      "createdAt": "2026-02-24T21:47:17.913527+00:00"
     }
   ],
   "activities": [

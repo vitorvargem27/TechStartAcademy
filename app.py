@@ -32,7 +32,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 load_dotenv()
 
 # ─── VARIÁVEIS DE AMBIENTE ──────────────────────
-GEMINI_API_KEY = "AIzaSyB6onN38fGs7zCSAdOzHP8hZf7F7k_6cm4"
+GEMINI_API_KEY = ""
 SECRET_KEY     = "tsa-default-key"
 PORT           = 8090
 DEBUG_MODE     = str(os.getenv("FLASK_DEBUG", "false")).lower() == "true"

@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════
 
 const CHATBOT_API = 'http://localhost:8090';
-const LOGO_PATH = 'Logo_Tech_Start_Academy.png';
+const LOGO_PATH = 'assets/Logo_Tech_Start_Academy.png';
 const BOT_AVATAR = 'assets/bot-avatar.svg';
 
 // ─── LANGUAGE LOGOS ──────────────────────────
@@ -33,68 +33,211 @@ const LANG_EMOJIS={Python:'🐍',JavaScript:'🌐',Java:'☕',HTML:'🧱',CSS:'�
 function langImg(lang,cls='lang-logo'){const src=LANG_LOGOS[lang]||LANG_LOGOS.Outro;return `<img src="${src}" alt="${lang}" class="${cls}" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=font-size:32px>${LANG_EMOJIS[lang]||'💻'}</span>')">`;}
 
 // ═══════════════════════════════════════════════
-//  DB — 100% JavaScript com localStorage
-//  Seed data do tsa_database.json
+//  DB — GitHub API como banco de dados persistente
+//  Lê e grava tsa_database.json no repositório
+//  localStorage apenas como cache rápido
 // ═══════════════════════════════════════════════
+
+// ─── GitDB: camada de acesso ao GitHub Contents API ───
+const GitDB = {
+  _cfgKey: 'tsa_github_cfg',
+
+  // Retorna config salva {token, owner, repo, branch, path}
+  getConfig() {
+    try { return JSON.parse(localStorage.getItem(this._cfgKey)) || null; } catch(_) { return null; }
+  },
+  saveConfig(cfg) {
+    localStorage.setItem(this._cfgKey, JSON.stringify(cfg));
+  },
+  isConfigured() {
+    const c = this.getConfig();
+    return !!(c && c.token && c.owner && c.repo);
+  },
+
+  // Lê o arquivo JSON do repositório via GitHub API
+  async read() {
+    const c = this.getConfig();
+    if (!c) return null;
+    try {
+      const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${c.path || 'data/tsa_database.json'}?ref=${c.branch || 'main'}&t=${Date.now()}`;
+      const r = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${c.token}`, 'Accept': 'application/vnd.github.v3+json', 'If-None-Match': '' }
+      });
+      if (!r.ok) { console.warn('[GitDB] Falha ao ler:', r.status); return null; }
+      const meta = await r.json();
+      const content = decodeURIComponent(escape(atob(meta.content.replace(/\n/g, ''))));
+      return { data: JSON.parse(content), sha: meta.sha };
+    } catch (e) { console.warn('[GitDB] Erro ao ler:', e); return null; }
+  },
+
+  // Grava o arquivo JSON no repositório via GitHub API (commit)
+  async write(data, sha) {
+    const c = this.getConfig();
+    if (!c) return false;
+    try {
+      const url = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${c.path || 'data/tsa_database.json'}`;
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+      const body = {
+        message: `[TSA] Atualização automática — ${new Date().toISOString()}`,
+        content: encoded,
+        branch: c.branch || 'main'
+      };
+      if (sha) body.sha = sha;
+      const r = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${c.token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        console.warn('[GitDB] Falha ao gravar:', r.status, err.message);
+        // Se SHA está desatualizado, re-lê e tenta novamente
+        if (r.status === 409 || (err.message && err.message.includes('sha'))) {
+          console.log('[GitDB] Conflito de SHA, relendo...');
+          const fresh = await this.read();
+          if (fresh) {
+            body.sha = fresh.sha;
+            const r2 = await fetch(url, {
+              method: 'PUT',
+              headers: { 'Authorization': `Bearer ${c.token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+              body: JSON.stringify(body)
+            });
+            if (r2.ok) {
+              const result = await r2.json();
+              return result.content?.sha || true;
+            }
+          }
+        }
+        return false;
+      }
+      const result = await r.json();
+      return result.content?.sha || true;
+    } catch (e) { console.warn('[GitDB] Erro ao gravar:', e); return false; }
+  }
+};
+
 const DB = {
   _d: null,
+  _sha: null,           // SHA do arquivo no GitHub (necessário para commits)
   _key: 'tsa_db_v5',
+  _saveTimer: null,      // Debounce para não commitar a cada micro-alteração
+  _saving: false,
 
   async init() {
-    const stored = localStorage.getItem(this._key);
-    if (stored) {
-      try { this._d = JSON.parse(stored); } catch(e) { this._d = null; }
-    }
-    if (!this._d) {
-      // Tenta carregar do JSON (funciona no GoLive)
+    // 1) SEMPRE tenta ler do GitHub primeiro (fonte de verdade)
+    if (GitDB.isConfigured()) {
       try {
-        const r = await fetch('data/tsa_database.json');
-        if (r.ok) this._d = await r.json();
-      } catch(e) { console.warn('Não foi possível carregar tsa_database.json, usando seed padrão.'); }
+        const remote = await GitDB.read();
+        if (remote && remote.data) {
+          console.log('[DB] ✅ Dados carregados do GitHub (tsa_database.json)');
+          this._d = remote.data;
+          this._sha = remote.sha;
+        }
+      } catch (e) { console.warn('[DB] Erro ao ler do GitHub:', e); }
     }
+
+    // 2) Se não conseguiu do GitHub, tenta fetch local (GoLive / dev server)
     if (!this._d) {
-      // Seed padrão embutido
+      try {
+        const r = await fetch('data/tsa_database.json?t=' + Date.now());
+        if (r.ok) {
+          this._d = await r.json();
+          console.log('[DB] ✅ Dados carregados do JSON local (fetch)');
+        }
+      } catch (e) { console.warn('[DB] Fetch local falhou:', e); }
+    }
+
+    // 3) Se nada funcionou, usa cache do localStorage
+    if (!this._d) {
+      const stored = localStorage.getItem(this._key);
+      if (stored) {
+        try {
+          this._d = JSON.parse(stored);
+          console.log('[DB] ⚠️ Usando cache localStorage (fallback)');
+        } catch (e) { this._d = null; }
+      }
+    }
+
+    // 4) Último recurso: seed mínimo embutido
+    if (!this._d) {
+      console.log('[DB] 🔄 Usando seed padrão embutido');
       this._d = {
-        users:[
-          {id:'u-admin',username:'admin',password:'Vvjb1234#',role:'admin',name:'Administrador',email:'admin@techstart.com',avatar:'',createdAt:'2025-01-01T00:00:00Z'},
-          {id:'u-001',username:'joao',password:'senha123',role:'user',name:'João Silva',email:'vitorvargem27@gmail.com',avatar:'',createdAt:'2025-01-15T10:00:00Z'},
-          {id:'u-002',username:'maria',password:'senha123',role:'user',name:'Maria Oliveira',email:'maria@email.com',avatar:'',createdAt:'2025-01-20T09:00:00Z'}
+        users: [
+          { id:'u-admin', username:'admin', password:'Vvjb1234#', role:'admin', name:'Administrador', email:'admin@techstart.com', avatar:'', createdAt:new Date().toISOString() }
         ],
-        activities:[
-          {id:'a-001',userId:'u-001',userName:'João Silva',title:'Variáveis em Python',language:'Python',code:'x = 10\ny = 20\nprint(x + y)',submittedAt:'2025-02-01T14:30:00Z',status:'graded',grade:9.5,correctedCode:'',comment:'Excelente! Código limpo e funcional.'},
-          {id:'a-002',userId:'u-002',userName:'Maria Oliveira',title:'Hello World em Java',language:'Java',code:'public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, World!");\n  }\n}',submittedAt:'2025-02-10T11:00:00Z',status:'pending',grade:null,correctedCode:'',comment:''}
-        ],
-        homework:[
-          {id:'hw-001',title:'Calculadora em Python',description:'Crie um programa que receba dois números e execute as 4 operações básicas (+, -, *, /). Use funções para cada operação e trate divisão por zero.',language:'Python',dueDate:'2025-03-10',createdAt:'2025-02-15T10:00:00Z',createdBy:'Administrador'}
-        ],
-        certificates:[
-          {id:'c-001',userId:'u-001',userName:'João Silva',courseName:'Python Básico',description:'Conclusão do módulo Python Básico.',issuedAt:'2025-02-15T00:00:00Z',issuedBy:'Administrador',fileData:'',fileName:''}
-        ],
-        messages:[
-          {id:'m-001',fromId:'u-admin',fromName:'Administrador',toId:'u-001',toName:'João Silva',subject:'Bem-vindo à Tech Start Academy! 🎉',body:'Olá João!\n\nSeja muito bem-vindo! Explore o Material de Estudos e envie suas primeiras atividades.\n\nBons estudos! 🚀',sentAt:'2025-01-15T12:00:00Z',read:false}
-        ],
-        chat_histories:{}
+        activities: [],
+        homework: [],
+        certificates: [],
+        messages: [],
+        chat_histories: {}
       };
     }
-    // Garante campos faltantes
-    if(!this._d.homework) this._d.homework = [];
-    if(!this._d.chat_histories) this._d.chat_histories = {};
-    this._save();
+
+    // Garante campos obrigatórios
+    if (!this._d.homework) this._d.homework = [];
+    if (!this._d.chat_histories) this._d.chat_histories = {};
+    if (!this._d.activities) this._d.activities = [];
+    if (!this._d.certificates) this._d.certificates = [];
+    if (!this._d.messages) this._d.messages = [];
+
+    // Salva no cache local
+    this._saveLocal();
   },
 
-  _save() {
-    try { localStorage.setItem(this._key, JSON.stringify(this._d)); } catch(e){}
-    // Sync to backend (fire-and-forget)
-    this._syncBackend();
+  // Salva apenas no localStorage (rápido, síncrono)
+  _saveLocal() {
+    try { localStorage.setItem(this._key, JSON.stringify(this._d)); } catch (e) {}
   },
-  _syncBackend() {
+
+  // Salva no localStorage + agenda commit no GitHub (debounced)
+  _save() {
+    this._saveLocal();
+    // Debounce: espera 1.5s de inatividade antes de commitar
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => this._commitToGitHub(), 1500);
+  },
+
+  // Commit real no GitHub
+  async _commitToGitHub() {
+    if (!GitDB.isConfigured() || this._saving) return;
+    this._saving = true;
     try {
-      fetch(CHATBOT_API + '/api/sync-data', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(this._d)
-      }).catch(()=>{});
-    } catch(_){}
+      // Clona dados sem campos pesados demais (chat_histories e avatars base64 podem ser grandes)
+      const dataToSave = JSON.parse(JSON.stringify(this._d));
+      const result = await GitDB.write(dataToSave, this._sha);
+      if (result) {
+        if (typeof result === 'string') this._sha = result;
+        console.log('[DB] ✅ Dados salvos no GitHub com sucesso');
+      } else {
+        console.warn('[DB] ⚠️ Falha ao salvar no GitHub (dados salvos localmente)');
+      }
+    } catch (e) {
+      console.warn('[DB] Erro ao commitar:', e);
+    }
+    this._saving = false;
+  },
+
+  // Força sync manual (útil para admin)
+  async forceSync() {
+    if (!GitDB.isConfigured()) return { ok: false, error: 'GitHub não configurado' };
+    this._saving = false;
+    await this._commitToGitHub();
+    return { ok: true };
+  },
+
+  // Força reload do GitHub
+  async forceReload() {
+    if (!GitDB.isConfigured()) return { ok: false, error: 'GitHub não configurado' };
+    const remote = await GitDB.read();
+    if (remote && remote.data) {
+      this._d = remote.data;
+      this._sha = remote.sha;
+      if (!this._d.homework) this._d.homework = [];
+      if (!this._d.chat_histories) this._d.chat_histories = {};
+      this._saveLocal();
+      return { ok: true };
+    }
+    return { ok: false, error: 'Não foi possível ler do GitHub' };
   },
   async dispararInsights() {
     try {
@@ -542,6 +685,7 @@ function buildSidebar(active){
     {p:'home-admin',ico:'📊',lbl:'Dashboard'},{p:'activities-admin',ico:'📝',lbl:'Correções'},
     {p:'homework-admin',ico:'🏠',lbl:'Atividades de Casa'},{p:'certificates-admin',ico:'🏆',lbl:'Certificados'},
     {p:'messages-admin',ico:'✉️',lbl:'Mensagens'},{p:'manage-students',ico:'🎓',lbl:'Alunos'},
+    {p:'settings',ico:'⚙️',lbl:'Configurações'},
   ];
   const links=isAdm?adminLinks:userLinks;
   const ava=u.avatar?`<img src="${u.avatar}" class="av" style="width:34px;height:34px" alt="">`:`<div class="av" style="width:34px;height:34px;font-size:12px">${ini(u.name)}</div>`;
@@ -574,6 +718,7 @@ function shell(activePage,title,content){
         <span style="font-size:16px;font-weight:800">${title}</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
+        ${Auth.isAdmin()?`<span style="font-size:11px;color:${GitDB.isConfigured()?'var(--ok)':'var(--warn)'};display:flex;align-items:center;gap:3px" title="${GitDB.isConfigured()?'GitHub conectado':'GitHub não configurado'}">${GitDB.isConfigured()?'🟢':'🟡'} ${GitDB.isConfigured()?'Sync':'Offline'}</span>`:''}
         ${!Auth.isAdmin()?`<button class="btn btn-s btn-sm" onclick="Router.go('messages-user')">✉️${unread>0?` <span class="nav-badge">${unread}</span>`:''}</button>`:''}
         <button class="btn btn-s btn-sm" onclick="A11y.toggle()">♿</button>
       </div>
@@ -1059,6 +1204,141 @@ const Pages = {
       }).join('')}</div>`);
   },
 
+  // ─── CONFIGURAÇÕES (Admin) ─────────────────
+  settings(){
+    if(!Auth.needAdmin())return'';
+    const cfg = GitDB.getConfig() || {};
+    const isOk = GitDB.isConfigured();
+    const statusBadge = isOk
+      ? '<span class="badge b-ok">✅ Conectado</span>'
+      : '<span class="badge b-warn">⚠️ Não configurado</span>';
+    return shell('settings','⚙️ Configurações',`
+      <div class="ptitle">Configurações</div><p class="psub">Configure a conexão com o GitHub para persistência dos dados.</p>
+      <div class="card" style="margin-bottom:20px">
+        <div class="sec-t" style="margin-bottom:14px">🔗 GitHub — Banco de Dados ${statusBadge}</div>
+        <p style="font-size:13px;color:var(--tx2);margin-bottom:16px;line-height:1.6">
+          Para que os dados (usuários, atividades, notas, etc.) sejam salvos de forma <strong>persistente</strong> no GitHub Pages,
+          configure abaixo o acesso ao repositório. O sistema usará a <strong>GitHub Contents API</strong> para ler e gravar
+          o arquivo <code>tsa_database.json</code> diretamente no seu repositório.
+        </p>
+        <div class="fg"><label class="fl">Personal Access Token (GitHub)</label>
+          <input class="fi" id="ghToken" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="${esc(cfg.token||'')}">
+          <div style="font-size:11px;color:var(--txm);margin-top:4px">Gere em github.com/settings/tokens → Fine-grained → permissão Contents (read/write)</div>
+        </div>
+        <div class="grid g2">
+          <div class="fg"><label class="fl">Owner (usuário/org)</label><input class="fi" id="ghOwner" placeholder="seu-usuario" value="${esc(cfg.owner||'')}"></div>
+          <div class="fg"><label class="fl">Repositório</label><input class="fi" id="ghRepo" placeholder="TechStartAcademy" value="${esc(cfg.repo||'')}"></div>
+        </div>
+        <div class="grid g2">
+          <div class="fg"><label class="fl">Branch</label><input class="fi" id="ghBranch" placeholder="main" value="${esc(cfg.branch||'main')}"></div>
+          <div class="fg"><label class="fl">Caminho do JSON</label><input class="fi" id="ghPath" placeholder="data/tsa_database.json" value="${esc(cfg.path||'data/tsa_database.json')}"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn btn-p" onclick="Pages.saveGitConfig()">💾 Salvar Configuração</button>
+          <button class="btn btn-s" onclick="Pages.testGitConnection()">🔍 Testar Conexão</button>
+        </div>
+        <div id="ghStatus" style="margin-top:12px;font-size:13px;display:none"></div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div class="sec-t" style="margin-bottom:14px">🔄 Sincronização</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-p btn-sm" onclick="Pages.forceSyncGH()" ${!isOk?'disabled':''}>📤 Forçar Envio (push)</button>
+          <button class="btn btn-s btn-sm" onclick="Pages.forceReloadGH()" ${!isOk?'disabled':''}>📥 Forçar Recarga (pull)</button>
+          <button class="btn btn-d btn-sm" onclick="Pages.resetLocalData()">🗑️ Limpar Cache Local</button>
+        </div>
+        <div id="syncStatus" style="margin-top:12px;font-size:13px;display:none"></div>
+      </div>
+      <div class="card">
+        <div class="sec-t" style="margin-bottom:14px">📋 Como funciona</div>
+        <div style="font-size:13px;color:var(--tx2);line-height:1.8">
+          <p>1. O sistema <strong>lê</strong> o <code>tsa_database.json</code> do repositório GitHub a cada carregamento.</p>
+          <p>2. Alterações (novas atividades, notas, mensagens) são salvas no <strong>localStorage</strong> instantaneamente.</p>
+          <p>3. Após 1.5s de inatividade, o sistema faz um <strong>commit automático</strong> no repositório via API.</p>
+          <p>4. O JSON do repositório é a <strong>fonte de verdade</strong> — funciona em qualquer navegador/dispositivo.</p>
+          <p style="margin-top:8px;color:var(--ac)">💡 <strong>Dica:</strong> Gere um token com permissão mínima (apenas Contents) para manter segurança.</p>
+        </div>
+      </div>`);
+  },
+
+  saveGitConfig(){
+    const token = document.getElementById('ghToken').value.trim();
+    const owner = document.getElementById('ghOwner').value.trim();
+    const repo = document.getElementById('ghRepo').value.trim();
+    const branch = document.getElementById('ghBranch').value.trim() || 'main';
+    const path = document.getElementById('ghPath').value.trim() || 'data/tsa_database.json';
+    if(!token||!owner||!repo){ Toast.show('Preencha Token, Owner e Repositório.','err'); return; }
+    GitDB.saveConfig({ token, owner, repo, branch, path });
+    Toast.show('Configuração salva! ✅','ok');
+    Router.go('settings');
+  },
+
+  async testGitConnection(){
+    const el = document.getElementById('ghStatus');
+    if(el){ el.style.display='block'; el.innerHTML='⏳ Testando conexão...'; el.style.color='var(--tx2)'; }
+    // Salva config temporariamente para testar
+    const token = document.getElementById('ghToken').value.trim();
+    const owner = document.getElementById('ghOwner').value.trim();
+    const repo = document.getElementById('ghRepo').value.trim();
+    const branch = document.getElementById('ghBranch').value.trim() || 'main';
+    const path = document.getElementById('ghPath').value.trim() || 'data/tsa_database.json';
+    if(!token||!owner||!repo){ if(el){ el.innerHTML='❌ Preencha Token, Owner e Repositório.'; el.style.color='var(--err)'; } return; }
+    GitDB.saveConfig({ token, owner, repo, branch, path });
+    try {
+      const result = await GitDB.read();
+      if(result && result.data){
+        const users = (result.data.users||[]).length;
+        const acts = (result.data.activities||[]).length;
+        if(el){
+          el.innerHTML = `✅ <strong>Conexão OK!</strong> — Arquivo encontrado (SHA: ${result.sha.substring(0,7)})<br>
+            📊 ${users} usuário(s), ${acts} atividade(s) no JSON remoto.`;
+          el.style.color = 'var(--ok)';
+        }
+        Toast.show('Conexão com GitHub OK! ✅','ok');
+      } else {
+        if(el){ el.innerHTML='❌ Arquivo não encontrado ou token inválido.'; el.style.color='var(--err)'; }
+        Toast.show('Falha na conexão','err');
+      }
+    } catch(e){
+      if(el){ el.innerHTML=`❌ Erro: ${e.message}`; el.style.color='var(--err)'; }
+      Toast.show('Erro na conexão','err');
+    }
+  },
+
+  async forceSyncGH(){
+    const el = document.getElementById('syncStatus');
+    if(el){ el.style.display='block'; el.innerHTML='⏳ Enviando dados para o GitHub...'; }
+    const r = await DB.forceSync();
+    if(r.ok){
+      if(el) el.innerHTML='✅ Dados enviados com sucesso!';
+      Toast.show('Push realizado! ✅','ok');
+    } else {
+      if(el) el.innerHTML=`❌ ${r.error||'Falha ao enviar'}`;
+      Toast.show('Falha no push','err');
+    }
+  },
+
+  async forceReloadGH(){
+    const el = document.getElementById('syncStatus');
+    if(el){ el.style.display='block'; el.innerHTML='⏳ Baixando dados do GitHub...'; }
+    const r = await DB.forceReload();
+    if(r.ok){
+      if(el) el.innerHTML='✅ Dados recarregados do GitHub!';
+      Toast.show('Pull realizado! ✅','ok');
+      setTimeout(()=>Router.go('settings'),1000);
+    } else {
+      if(el) el.innerHTML=`❌ ${r.error||'Falha ao baixar'}`;
+      Toast.show('Falha no pull','err');
+    }
+  },
+
+  resetLocalData(){
+    if(!confirm('Limpar cache local? Os dados do GitHub não serão afetados.\nIsso forçará reload do JSON na próxima vez.')) return;
+    localStorage.removeItem('tsa_db_v5');
+    localStorage.removeItem('tsa_auth');
+    Toast.show('Cache limpo! Recarregando...','info');
+    setTimeout(()=>location.reload(), 1000);
+  },
+
   profile(){
     if(!Auth.need())return'';
     Auth.refreshUser();const u=Auth.currentUser;
@@ -1150,6 +1430,7 @@ const App = {
       case 'messages-user':html=Pages.messagesUser();break;
       case 'messages-admin':html=Pages.messagesAdmin();break;
       case 'manage-students':html=Pages.manageStudents();break;
+      case 'settings':html=Pages.settings();break;
       case 'profile':html=Pages.profile();break;
       default:
         // Handle material detail pages

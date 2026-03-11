@@ -12,21 +12,11 @@
     },
     {
       "id": "u-001",
-      "username": "joao",
+      "username": "Matheus",
       "password": "senha123",
       "role": "user",
-      "name": "João Silva",
-      "email": "joao@email.com",
-      "avatar": "",
-      "createdAt": "2026-02-24T21:47:17.913527+00:00"
-    },
-    {
-      "id": "u-002",
-      "username": "maria",
-      "password": "senha123",
-      "role": "user",
-      "name": "Maria Oliveira",
-      "email": "maria@email.com",
+      "name": "Matheus Santos",
+      "email": "matheus@email.com",
       "avatar": "",
       "createdAt": "2026-02-24T21:47:17.913527+00:00"
     }

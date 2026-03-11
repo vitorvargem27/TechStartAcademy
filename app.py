@@ -18,7 +18,6 @@ Rotas:
 """
 
 import os
-import sys
 import json
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -33,7 +32,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 load_dotenv()
 
 # ─── VARIÁVEIS DE AMBIENTE ──────────────────────
-GEMINI_API_KEY = "AIzaSyC58GgWC_Ba9cwu3y1J-vxhjH81dKZ0ZSk"
+GEMINI_API_KEY = "AIzaSyB6onN38fGs7zCSAdOzHP8hZf7F7k_6cm4"
 SECRET_KEY     = "tsa-default-key"
 PORT           = 8090
 DEBUG_MODE     = str(os.getenv("FLASK_DEBUG", "false")).lower() == "true"
@@ -54,7 +53,7 @@ except Exception as e:
 
 # ─── IMPORTAR MÓDULO DE INSIGHTS ────────────────
 try:
-    from send_insights import (
+    from plataforma.send_insights import (
         enviar_email,
         executar_insights_todos_alunos,
         coletar_metricas_aluno,

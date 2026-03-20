@@ -1,0 +1,75 @@
+{
+  "users": [
+    {
+      "id": "admin-001",
+      "username": "admin",
+      "password": "Vvjb1234#",
+      "role": "admin",
+      "name": "Administrador",
+      "email": "admin@codelearn.com",
+      "avatar": "",
+      "createdAt": "2025-01-01T00:00:00Z"
+    },
+    {
+      "id": "user-001",
+      "username": "matheus",
+      "password": "senha123",
+      "role": "user",
+      "name": "João Silva",
+      "email": "joao@email.com",
+      "avatar": "",
+      "createdAt": "2025-01-15T10:00:00Z"
+    },
+    {
+      "id": "user-002",
+      "username": "davi",
+      "password": "senha123",
+      "role": "user",
+      "name": "Davi Santos",
+      "email": "davi@email.com",
+      "avatar": "",
+      "createdAt": "2025-01-15T10:00:01Z"
+    }
+  ],
+  "activities": [
+    {
+      "id": "act-001",
+      "userId": "user-001",
+      "userName": "João Silva",
+      "title": "Exercício 1 - Variáveis em Python",
+      "language": "Python",
+      "code": "x = 10\ny = 20\nprint(x + y)",
+      "submittedAt": "2025-02-01T14:30:00Z",
+      "status": "graded",
+      "grade": 9.5,
+      "correctedCode": "x = 10\ny = 20\nprint(x + y)  # Correto!",
+      "comment": "Excelente trabalho! Código limpo e funcional."
+    }
+  ],
+  "certificates": [
+    {
+      "id": "cert-001",
+      "userId": "user-001",
+      "userName": "João Silva",
+      "courseName": "Python Básico",
+      "issuedAt": "2025-02-15T00:00:00Z",
+      "issuedBy": "Administrador",
+      "fileUrl": "",
+      "description": "Certificado de conclusão do curso de Python Básico"
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-001",
+      "fromId": "admin-001",
+      "fromName": "Administrador",
+      "toId": "user-001",
+      "toName": "João Silva",
+      "subject": "Bem-vindo à plataforma!",
+      "body": "Olá João! Seja bem-vindo à CodeLearn. Estamos felizes em ter você aqui.",
+      "sentAt": "2025-01-15T12:00:00Z",
+      "read": false
+    }
+  ],
+  "chatHistory": []
+}
